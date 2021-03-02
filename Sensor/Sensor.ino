@@ -1,6 +1,10 @@
 #define USE_ARDUINO_INTERRUPTS true
 #define LENGTH 6
 #define GROUP 2
+#define MIN 0
+#define MAX 2048
+#define STEP 4
+#define BITLENGTH 2
 #include <PulseSensorPlayground.h>
 
 //  Variables
@@ -68,6 +72,7 @@ void loop()
 
 void encrypt()
 {
+  //Print the IPI sequence
   Serial.println("IPI Sequence");
   for (int i = 0; i < LENGTH; i++)
   {
@@ -88,4 +93,24 @@ void encrypt()
     j++;
   }
   Serial.println();
+  
+  //Quantize the IPI sequence
+  Serial.println("Quantized");
+  int quantizedSequence[LENGTH/GROUP];
+  int i = 0;
+  for (int i = 0; i < LENGTH/GROUP; i++)
+  {
+    for (int j = 0; j < (MAX-MIN)/STEP; j++)
+    {
+      if (groupedSequence[i] < MIN + (j + 1) * STEP)
+      {
+        quantizedSequence[i] = j % (int)pow(2, BITLENGTH);
+        break;
+      }
+    }
+    Serial.print(quantizedSequence[i]);
+    Serial.print(" ");
+  }
+  Serial.println();
+  
 }
