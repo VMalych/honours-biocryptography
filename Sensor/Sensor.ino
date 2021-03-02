@@ -6,7 +6,6 @@
 #define STEP 4
 #define BITLENGTH 2
 #include <PulseSensorPlayground.h>
-
 //  Variables
 int Signal;                     // holds the incoming raw data. Signal value can range from 0-1024
 const int PULSE_INPUT = A0;
@@ -97,7 +96,6 @@ void encrypt()
   //Quantize the IPI sequence
   Serial.println("Quantized");
   int quantizedSequence[LENGTH/GROUP];
-  int i = 0;
   for (int i = 0; i < LENGTH/GROUP; i++)
   {
     for (int j = 0; j < (MAX-MIN)/STEP; j++)
@@ -113,4 +111,21 @@ void encrypt()
   }
   Serial.println();
   
+  //Gray code the IPI sequence
+  Serial.println("Binary");
+  for (int i = 0; i < LENGTH/GROUP; i++)
+  {
+    Serial.print(quantizedSequence[i], BIN);
+    Serial.print(" ");
+  }
+  Serial.println();
+  Serial.println("Gray encoded binary");
+  int grayEncodedSequence[LENGTH/GROUP];
+  for (int i = 0; i < LENGTH/GROUP; i++)
+  {
+    grayEncodedSequence[i] = (quantizedSequence[i]>>1) ^ quantizedSequence[i];
+    Serial.print(grayEncodedSequence[i], BIN);
+    Serial.print(" ");
+  }
+  Serial.println();
 }
