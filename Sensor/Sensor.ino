@@ -1,34 +1,33 @@
 #define USE_ARDUINO_INTERRUPTS true
-#define LENGTH 6
-#define GROUP 2
-#define MIN 0
-#define MAX 2048
-#define STEP 4
-#define BITLENGTH 2
+#define LENGTH 8 //Sequence length
+#define GROUP 2  //Grouping size
+#define MIN 0    //Minimum IPI value
+#define MAX 10000 //Maximum IPI value
+#define STEP 4 //Step size for quantisation
+#define BITLENGTH 2 //Bit length of a quantised and binarised sequence
 #include <PulseSensorPlayground.h>
 //  Variables
 int Signal;                     // holds the incoming raw data. Signal value can range from 0-1024
-const int PULSE_INPUT0 = A0;
-const int PULSE_INPUT1 = A1;
+const int PULSE_INPUT0 = A0;    //Input pin for the first sensor
+const int PULSE_INPUT1 = A1;    //Input pin for the second sensor
 const int PULSE_BLINK = 13;    // Pin 13 is the on-board LED
 const int THRESHOLD = 520;   // Determine which Signal to "count as a beat", and which to ingore.
-int LED13 = 13;                 //  The on-board Arduino LED
 const int OUTPUT_TYPE = SERIAL_PLOTTER;
 PulseSensorPlayground pulseSensor(2);
 
-int bpm0 = 0;
-int ibi0 = 0;
-int sequence0[LENGTH];
-int encryptedSequence0[LENGTH/GROUP];
+int bpm0 = 0; //BPM of first sensor
+int ibi0 = 0; //IPI of first sensor
+int sequence0[LENGTH]; //First IPI sequence
+int encryptedSequence0[LENGTH/GROUP]; //First encrypted IPI sequence
 int step0 = 0;
-bool match0 = false;
+bool match0 = false; //First sequence ready
 
-int bpm1 = 0;
-int ibi1 = 0;
-int sequence1[LENGTH];
-int encryptedSequence1[LENGTH/GROUP];
+int bpm1 = 0; //BPM of second sensor
+int ibi1 = 0; //IPI of second sensor
+int sequence1[LENGTH]; //Second IPI sequence
+int encryptedSequence1[LENGTH/GROUP]; //Second encrypted IPI sequence
 int step1 = 0;
-bool match1 = false;
+bool match1 = false; //Second sequence ready
 
 void encrypt(String sensor, int sequence[LENGTH], int (&encryptedSequence)[LENGTH/GROUP]);
 
@@ -36,7 +35,7 @@ void setup()
 {
   Serial.begin(115200);
 
-  // Configure the PulseSensor manager.
+  //Configure the PulseSensor manager.
   pulseSensor.analogInput(PULSE_INPUT0, 0);
   pulseSensor.blinkOnPulse(PULSE_BLINK, 0);
   pulseSensor.analogInput(PULSE_INPUT1, 1);
@@ -44,7 +43,7 @@ void setup()
   pulseSensor.setOutputType(OUTPUT_TYPE);
   pulseSensor.setThreshold(THRESHOLD);
 
-  // Now that everything is ready, start reading the PulseSensor signal.
+  //Now that everything is ready, start reading the PulseSensor signal.
   if (!pulseSensor.begin()) 
   {
     for(;;) 
@@ -62,13 +61,14 @@ void setup()
 void loop() 
 {
   delay(20);
-  pulseSensor.outputSample();
+  //pulseSensor.outputSample();
   if (pulseSensor.sawStartOfBeat(0)) 
   {
     pulseSensor.outputBeat(0);
     bpm0 = pulseSensor.getBeatsPerMinute(0);
     ibi0 = pulseSensor.getInterBeatIntervalMs(0);
-    
+
+    //Once enough IPI received, encrypt the sequence
     if (step0 != LENGTH)
     {
       sequence0[step0] = ibi0;
@@ -86,7 +86,8 @@ void loop()
     pulseSensor.outputBeat(1);
     bpm1 = pulseSensor.getBeatsPerMinute(1);
     ibi1 = pulseSensor.getInterBeatIntervalMs(1);
-    
+
+    //Once enough IPI received, encrypt the sequence
     if (step1 != LENGTH)
     {
       sequence1[step1] = ibi1;
@@ -99,53 +100,48 @@ void loop()
       match1 = true;
     }
   }
+
+  //When both IPI sequences are ready
   if (match0 && match1)
   {
     int distance = 0;
     for (int i = 0; i < LENGTH/GROUP; i++)
     {
-      Serial.print(encryptedSequence0[i]);
-      Serial.print("-");
-      Serial.print(encryptedSequence1[i]);
-      Serial.print(" ");
-      Serial.println(hammingDistance(encryptedSequence0[i], encryptedSequence1[i])); 
       distance += hammingDistance(encryptedSequence0[i], encryptedSequence1[i]);
     }
-    Serial.println();
-    Serial.print("Hamming distance: ");
+
+    //CSV printing
+    for (int i = 0; i < LENGTH/GROUP; i++)
+    {
+      Serial.print(encryptedSequence0[i], BIN);
+
+    }
+    Serial.print(",");
+    for (int i = 0; i < LENGTH/GROUP; i++)
+    {
+      Serial.print(encryptedSequence1[i], BIN);
+    }
+    Serial.print(",");
     Serial.println(distance);
     match0 = false;
     match1 = false;
   }
 }
 
+//Encryption
 void encrypt(String sensor, int sequence[LENGTH], int (&encryptedSequence)[LENGTH/GROUP])
 {
-  Serial.println("Sensor " + sensor);
-  //Print the IPI sequence
-  Serial.println("IPI Sequence");
-  for (int i = 0; i < LENGTH; i++)
-  {
-    Serial.print(sequence[i]);
-    Serial.print(" ");
-  }
-  Serial.println();
-
   //Group the IPI sequence
   int groupedSequence[LENGTH/GROUP];
   int j = 0;
-  Serial.println("Grouped");
   for (int i = 0; i < LENGTH; i += 2)
   {
     groupedSequence[j] = sequence[i] + sequence[i + 1];
-    Serial.print(groupedSequence[j]);
-    Serial.print(" ");
     j++;
   }
-  Serial.println();
   
   //Quantize the IPI sequence
-  Serial.println("Quantized");
+  //Serial.println("Quantized");
   int quantizedSequence[LENGTH/GROUP];
   for (int i = 0; i < LENGTH/GROUP; i++)
   {
@@ -157,31 +153,18 @@ void encrypt(String sensor, int sequence[LENGTH], int (&encryptedSequence)[LENGT
         break;
       }
     }
-    Serial.print(quantizedSequence[i]);
-    Serial.print(" ");
   }
-  Serial.println();
   
   //Gray code the IPI sequence
-  Serial.println("Binary");
-  for (int i = 0; i < LENGTH/GROUP; i++)
-  {
-    Serial.print(quantizedSequence[i], BIN);
-    Serial.print(" ");
-  }
-  Serial.println();
-  Serial.println("Gray encoded binary");
   int grayEncodedSequence[LENGTH/GROUP];
   for (int i = 0; i < LENGTH/GROUP; i++)
   {
     grayEncodedSequence[i] = (quantizedSequence[i]>>1) ^ quantizedSequence[i];
     encryptedSequence[i] = grayEncodedSequence[i];
-    Serial.print(grayEncodedSequence[i], BIN);
-    Serial.print(" ");
   }
-  Serial.println();
 }
 
+//Hamming distance calculation
 int hammingDistance(int n1, int n2) 
 { 
     int x = n1 ^ n2; 
