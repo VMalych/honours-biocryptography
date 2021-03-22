@@ -2,7 +2,7 @@
 #define LENGTH 8 //Sequence length
 #define GROUP 2  //Grouping size
 #define MIN 0    //Minimum IPI value
-#define MAX 10000 //Maximum IPI value
+#define MAX INT64_MAX //Maximum IPI value
 #define STEP 4 //Step size for quantisation
 #define BITLENGTH 2 //Bit length of a quantised and binarised sequence
 #include <PulseSensorPlayground.h>
@@ -11,9 +11,9 @@ int Signal;                     // holds the incoming raw data. Signal value can
 const int PULSE_INPUT0 = A0;    //Input pin for the first sensor
 const int PULSE_INPUT1 = A1;    //Input pin for the second sensor
 const int PULSE_BLINK = 13;    // Pin 13 is the on-board LED
-const int THRESHOLD = 520;   // Determine which Signal to "count as a beat", and which to ingore.
+const int THRESHOLD = 515;   // Determine which Signal to "count as a beat", and which to ingore.
 const int OUTPUT_TYPE = SERIAL_PLOTTER;
-PulseSensorPlayground pulseSensor(2);
+PulseSensorPlayground pulseSensor(1);
 
 int bpm0 = 0; //BPM of first sensor
 int ibi0 = 0; //IPI of first sensor
@@ -102,7 +102,7 @@ void loop()
   }
 
   //When both IPI sequences are ready
-  if (match0 && match1)
+  if (match0)
   {
     int distance = 0;
     for (int i = 0; i < LENGTH/GROUP; i++)
@@ -113,12 +113,13 @@ void loop()
     //CSV printing
     for (int i = 0; i < LENGTH/GROUP; i++)
     {
+      if (encryptedSequence0[i] <= 1) Serial.print("0");
       Serial.print(encryptedSequence0[i], BIN);
-
     }
     Serial.print(",");
     for (int i = 0; i < LENGTH/GROUP; i++)
     {
+      if (encryptedSequence1[i] <= 1) Serial.print("0");
       Serial.print(encryptedSequence1[i], BIN);
     }
     Serial.print(",");
