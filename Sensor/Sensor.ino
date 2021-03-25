@@ -1,9 +1,9 @@
 #define USE_ARDUINO_INTERRUPTS true
-#define LENGTH 8 //Sequence length
-#define GROUP 2  //Grouping size
+#define LENGTH 32 //Sequence length
+#define GROUP 1  //Grouping size
 #define MIN 0    //Minimum IPI value
 #define MAX INT64_MAX //Maximum IPI value
-#define STEP 4 //Step size for quantisation
+#define STEP 2 //Step size for quantisation
 #define BITLENGTH 2 //Bit length of a quantised and binarised sequence
 #include <PulseSensorPlayground.h>
 //  Variables
@@ -135,10 +135,20 @@ void encrypt(String sensor, int sequence[LENGTH], int (&encryptedSequence)[LENGT
   //Group the IPI sequence
   int groupedSequence[LENGTH/GROUP];
   int j = 0;
-  for (int i = 0; i < LENGTH; i += 2)
+  int k = 0;
+  groupedSequence[j] = 0;
+  for (int i = 0; i < LENGTH; i++)
   {
-    groupedSequence[j] = sequence[i] + sequence[i + 1];
-    j++;
+    if (k < GROUP)
+    {
+      groupedSequence[j] += sequence[i];
+      k++;
+    }
+    else
+    {
+      j++;
+      groupedSequence[j] = 0;
+    }
   }
   
   //Quantize the IPI sequence
