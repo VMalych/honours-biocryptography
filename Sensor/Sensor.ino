@@ -1,19 +1,21 @@
 #define USE_ARDUINO_INTERRUPTS true
 #define LENGTH 8 //Sequence length
-#define GROUP 8  //Grouping size
-#define MIN 0    //Minimum IPI value
+#define GROUP 2 //Grouping size
+#define MIN 0 //Minimum IPI value
 #define MAX INT64_MAX //Maximum IPI value
-#define STEP 2 //Step size for quantisation
+#define STEP 4 //Step size for quantisation
 #define BITLENGTH 2 //Bit length of a quantised and binarised sequence
 #include <PulseSensorPlayground.h>
+
 //  Variables
 int Signal;                     // holds the incoming raw data. Signal value can range from 0-1024
 const int PULSE_INPUT0 = A0;    //Input pin for the first sensor
 const int PULSE_INPUT1 = A1;    //Input pin for the second sensor
-const int PULSE_BLINK = 13;    // Pin 13 is the on-board LED
-const int THRESHOLD = 515;   // Determine which Signal to "count as a beat", and which to ingore.
+const int PULSE_BLINK0 = 12;
+const int PULSE_BLINK1 = 13; 
+const int THRESHOLD = 520;   // Determine which Signal to "count as a beat", and which to ingore.
 const int OUTPUT_TYPE = SERIAL_PLOTTER;
-PulseSensorPlayground pulseSensor(1);
+PulseSensorPlayground pulseSensor(2);
 
 int bpm0 = 0; //BPM of first sensor
 int ibi0 = 0; //IPI of first sensor
@@ -29,6 +31,8 @@ int encryptedSequence1[LENGTH/GROUP]; //Second encrypted IPI sequence
 int step1 = 0;
 bool match1 = false; //Second sequence ready
 
+int counter = 0;
+
 void encrypt(String sensor, int sequence[LENGTH], int (&encryptedSequence)[LENGTH/GROUP]);
 
 void setup() 
@@ -37,8 +41,9 @@ void setup()
 
   //Configure the PulseSensor manager.
   pulseSensor.analogInput(PULSE_INPUT0, 0);
-  pulseSensor.blinkOnPulse(PULSE_BLINK, 0);
+  pulseSensor.blinkOnPulse(PULSE_BLINK0, 0);
   pulseSensor.analogInput(PULSE_INPUT1, 1);
+  pulseSensor.blinkOnPulse(PULSE_BLINK1, 1);
   pulseSensor.setSerial(Serial);
   pulseSensor.setOutputType(OUTPUT_TYPE);
   pulseSensor.setThreshold(THRESHOLD);
@@ -49,9 +54,13 @@ void setup()
     for(;;) 
     {
       // Flash the led to show things didn't work.
-      digitalWrite(PULSE_BLINK, LOW);
+      digitalWrite(PULSE_BLINK0, LOW);
       delay(50);
-      digitalWrite(PULSE_BLINK, HIGH);
+      digitalWrite(PULSE_BLINK0, HIGH);
+      delay(50);
+      digitalWrite(PULSE_BLINK1, LOW);
+      delay(50);
+      digitalWrite(PULSE_BLINK1, HIGH);
       delay(50);
     }
   }
@@ -102,7 +111,7 @@ void loop()
   }
 
   //When both IPI sequences are ready
-  if (match0)
+  if (match0 && match1)
   {
     int distance = 0;
     for (int i = 0; i < LENGTH/GROUP; i++)
@@ -126,6 +135,8 @@ void loop()
     Serial.println(distance);
     match0 = false;
     match1 = false;
+    counter++;
+    if (counter > 60) Serial.println("ENOUGH RECORDS");
   }
 }
 
@@ -145,7 +156,6 @@ void encrypt(String sensor, int sequence[LENGTH], int (&encryptedSequence)[LENGT
   }
   
   //Quantize the IPI sequence
-  //Serial.println("Quantized");
   int quantizedSequence[LENGTH/GROUP];
   for (int i = 0; i < LENGTH/GROUP; i++)
   {
